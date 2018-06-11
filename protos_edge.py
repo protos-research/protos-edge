@@ -31,16 +31,29 @@ class Data_Selected(Data):
         
         return prices
     
+    def load_OHLC(self):
+        tickers = ['Date'] + self.tickers
+        ticker_str = ', '.join("`{}`".format(ticker) for ticker in tickers)
+
+        engine = sql.create_engine('mysql+pymysql://protos-github:protos-github@google-sheet-data.cfyqhzfdz93r.eu-west-1.rds.amazonaws.com:3306/protos')
+        
+        opening = pd.read_sql("Select " + str(ticker_str) + " From open", con=engine)
+        high = pd.read_sql("Select " + str(ticker_str) + " From high", con=engine)
+        low = pd.read_sql("Select " + str(ticker_str) + " From low", con=engine)
+        closing = pd.read_sql("Select " + str(ticker_str) + " From close", con=engine)
+        
+        return [opening, high, low, closing]
+    
     def clean_data(self, data):
         date_filter = (data['Date'] >= self.start) & (data['Date'] <= self.end)
-        price = data[date_filter]
+        data = data[date_filter]
         # frequency_filter = data['Date'] == ...
         # price = price[frequency_filter]
-        price.set_index('Date', inplace=True)
-        price.index = pd.to_datetime(price.index)
-        price.fillna('NaN')
-        price = price.apply(pd.to_numeric, errors='coerce')
-        return price
+        data.set_index('Date', inplace=True)
+        data.index = pd.to_datetime(data.index)
+        data.fillna('NaN')
+        data = data.apply(pd.to_numeric, errors='coerce')
+        return data
         
 
 class Trend_Following(Strategy):   
@@ -133,12 +146,11 @@ class Trend_Following(Strategy):
        
 class Daily_Portfolio(Portfolio):
     
-    def __init__(self, init_balance = 0, balance=[], positions=[], trading=[],fees=0):
-        self.positions = positions
+    def __init__(self, init_balance):
+        self.positions = []
         self.init_balance = init_balance
-        self.balance = balance  
-        self.fees = fees
-        self.trading = trading
+        self.balance = []  
+        self.trading = []
         
         
 class Daily_Backtest(Backtest):
@@ -201,7 +213,6 @@ class Daily_Backtest(Backtest):
         mean = returns.mean()*365
         vol = returns.std()*np.sqrt(365)
         gain_to_pain = returns.sum()/abs(returns[returns < 0].sum())
-        
         print("Expected Returns: " + str(mean.values))
         print("Volatility: " + str(vol.values))
         print("-------------------------------------")
@@ -212,6 +223,8 @@ class Daily_Backtest(Backtest):
         print("-------------------------------------")
         print("Final Balance: " + str(portfolio_balance.iloc[portfolio_balance.shape[0]-1].values))
         portfolio_balance.plot()
+       
+        return [mean.values,vol.values,sharpe.values,gain_to_pain.values]
 
 
     
