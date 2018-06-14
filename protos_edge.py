@@ -44,6 +44,13 @@ class Data_Selected(Data):
         
         return [opening, high, low, closing]
     
+    def load_Volume(self):
+        tickers = ['Date'] + self.tickers
+        ticker_str = ', '.join("`{}`".format(ticker) for ticker in tickers)
+        engine = sql.create_engine('mysql+pymysql://protos-github:protos-github@google-sheet-data.cfyqhzfdz93r.eu-west-1.rds.amazonaws.com:3306/protos')
+        volume = pd.read_sql("Select " + str(ticker_str) + " From volume", con=engine)
+        return volume
+    
     def clean_data(self, data):
         date_filter = (data['Date'] >= self.start) & (data['Date'] <= self.end)
         data = data[date_filter]
@@ -52,6 +59,7 @@ class Data_Selected(Data):
         data.set_index('Date', inplace=True)
         data.index = pd.to_datetime(data.index)
         data.fillna('NaN')
+        data = data.apply(lambda x: x.str.replace(',',''))
         data = data.apply(pd.to_numeric, errors='coerce')
         return data
         
