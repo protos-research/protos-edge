@@ -21,13 +21,13 @@ class Data_Selected(Data):
         self.frequency = frequency
         self.tickers = tickers
         
-    def load_data(self):
+    def load_data(self,table):
         tickers = ['Date'] + self.tickers
         ticker_str = ', '.join("`{}`".format(ticker) for ticker in tickers)
 
         engine = sql.create_engine('mysql+pymysql://protos-github:protos-github@google-sheet-data.cfyqhzfdz93r.eu-west-1.rds.amazonaws.com:3306/protos')
 
-        prices = pd.read_sql("Select " + str(ticker_str) + " From close", con=engine)
+        prices = pd.read_sql("Select " + str(ticker_str) + " From " + str(table), con=engine)
         
         return prices
     
@@ -52,12 +52,12 @@ class Data_Selected(Data):
         return volume
     
     def clean_data(self, data):
-        date_filter = (data['Date'] >= self.start) & (data['Date'] <= self.end)
+        data.set_index('Date', inplace=True)
+        data.index = pd.to_datetime(data.index)
+        date_filter = (data.index >= self.start) & (data.index <= self.end)
         data = data[date_filter]
         # frequency_filter = data['Date'] == ...
         # price = price[frequency_filter]
-        data.set_index('Date', inplace=True)
-        data.index = pd.to_datetime(data.index)
         data.fillna('NaN')
         data = data.apply(lambda x: x.str.replace(',',''))
         data = data.apply(pd.to_numeric, errors='coerce')
